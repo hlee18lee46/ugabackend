@@ -68,6 +68,33 @@ def login():
 def protected():
     return jsonify({"message": "This is a protected route!"})
 
+collectionQuiz = db["beginner_quiz"]  # Updated collection name
+
+@app.route('/quiz/categories', methods=['GET'])
+def get_categories():
+    """Fetch all quiz categories."""
+    categories = collectionQuiz.distinct("quiz_category")
+    return jsonify({"categories": categories})
+
+@app.route('/quiz/<category>', methods=['GET'])
+def get_quiz_by_category(category):
+    """Fetch quiz questions by category."""
+    quizzes = list(collectionQuiz.find({"quiz_category": category}, {"_id": 0}))
+    return jsonify(quizzes)
+
+@app.route('/quiz/answer', methods=['POST'])
+def check_answer():
+    """Validate if the selected answer is correct."""
+    data = request.json
+    question = data.get("question")
+    selected_answer = data.get("answer")
+
+    quiz = collectionQuiz.find_one({"financial_literacy_quiz": question}, {"_id": 0, "answer": 1})
+    
+    if quiz:
+        correct = quiz["answer"] == selected_answer
+        return jsonify({"correct": correct, "message": "Correct!" if correct else "Wrong answer, try again."})
+    return jsonify({"error": "Question not found"}), 404
 
 @app.route('/')
 def home():
