@@ -5,6 +5,7 @@ import os
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_cors import CORS
+import requests, json, fitz  # Handles JSON parsing
 
 # Load environment variables
 load_dotenv()
@@ -95,6 +96,89 @@ def check_answer():
         correct = quiz["answer"] == selected_answer
         return jsonify({"correct": correct, "message": "Correct!" if correct else "Wrong answer, try again."})
     return jsonify({"error": "Question not found"}), 404
+
+# Get OpenAI API Key from environment variable
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    raise ValueError("Missing OPENAI_API_KEY environment variable. Please set it in your .env file.")
+
+# Path to the uploaded PDF file
+PDF_FILE_PATH = "uploaded.pdf"
+
+def extract_text_from_pdf(pdf_path):
+    """Extract text content from a PDF file."""
+    try:
+        doc = fitz.open(pdf_path)
+        text = ""
+        for page in doc:
+            text += page.get_text("text") + "\n"
+        return text.strip() if text else "No text found in the PDF."
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
+
+@app.route("/process_pdf", methods=["POST"])
+def process_pdf():
+    """Process a locally stored PDF file and analyze it using OpenAI API."""
+    if not os.path.exists(PDF_FILE_PATH):
+        return jsonify({"error": "PDF file not found"}), 400
+
+    # Extract text from PDF
+    pdf_text = extract_text_from_pdf(PDF_FILE_PATH)
+
+    # Define prompt for OpenAI
+    prompt = (
+        "Could you please return 20 JSON objects containing quizzes based on the provided PDF content? "
+        "Ensure each quiz has the following format:\n\n"
+        "[\n"
+        "  {\n"
+        '    "quiz_category": "Financial Ratios",\n'
+        '    "financial_literacy_quiz": "What is the Return on Equity (ROE) for Q1 2024 if net income is $1,200 million and total shareholders\' equity is $59,053 million?",\n'
+        '    "option1": "1.98%",\n'
+        '    "option2": "2.03%",\n'
+        '    "option3": "2.07%",\n'
+        '    "option4": "2.11%",\n'
+        '    "answer": "2.03%",\n'
+        '    "created_at": "2025-02-08T12:00:00.000+00:00",\n'
+        '    "last_updated": "2025-02-08T12:00:00.000+00:00"\n'
+        "  },\n"
+        "  ... (19 more questions in the same format)\n"
+        "]\n\n"
+        "Ensure the questions are relevant to the PDF content."
+    )
+
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    payload = {
+        "model": "gpt-3.5-turbo",  # Using GPT-3.5 to reduce costs
+        "messages": [
+            {
+                "role": "user",
+                "content": prompt
+            }
+        ],
+        "max_tokens": 1000
+    }
+
+    # Send request to OpenAI API
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response_data = response.json()
+
+    if "choices" in response_data and len(response_data["choices"]) > 0:
+        content_text = response_data["choices"][0]["message"]["content"]
+
+        # Try parsing as JSON
+        try:
+            json_data = json.loads(content_text)
+            return jsonify(json_data), 200
+        except json.JSONDecodeError:
+            return jsonify({"summary": content_text}), 200
+
+    return jsonify({"error": "Failed to process PDF"}), 500
 
 @app.route('/')
 def home():
