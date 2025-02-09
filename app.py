@@ -56,13 +56,15 @@ def login():
     data = request.get_json()
     username = data.get("username")
     password = data.get("password")
-    user_id = data.get("_id")
+    #user_id = data.get("_id")
+    
 
     if not username or not password:
         return jsonify({"error": "Username and password required"}), 400
 
     # Fetch user from database
     user = user_collection.find_one({"username": username})
+    user_id = user["_id"]
 
     if not user or not check_password_hash(user["password"], password):
         return jsonify({"error": "Invalid username or password"}), 401
