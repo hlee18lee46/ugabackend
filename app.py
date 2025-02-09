@@ -314,7 +314,7 @@ def process_pdf():
     # OpenAI Prompt
     prompt = (
         "Return only the array of Generated 10 quiz questions in valid JSON format based on the following PDF content. "
-        "No trailing markdown or anything but the array of JSON. The example would be quiz_category (Income Calculation or Financial Ratios, Balance Sheet Calculation), financial_literacy_quiz (Question, example is What is the Return on Equity (ROE) for Q1 2024?, option1 (for example, 1.98%), option2: (for example, 2.03%), option3: (for example, 2.07%), option4 (for example, 2.11%), answer (for example, 2.03%), created_at (for example, 2025-02-08T12:00:00.000+00:00),last_updated (for example, 2025-02-08T12:00:00.000+00:00)"
+        "No trailing markdown or anything but the array of JSON. The example would be 1) quiz_category (Income Calculation or Financial Ratios, Balance Sheet Calculation), 2) financial_literacy_quiz (Question itself, example is What is the Return on Equity (ROE) for Q1 2024?, 3) option1 (for example, 1.98%), 4) option2: (for example, 2.03%), 5) option3: (for example, 2.07%), 6) option4 (for example, 2.11%), 7) answer (for example, 2.03%), 8) created_at (for example, 2025-02-08T12:00:00.000+00:00),9) last_updated (for example, 2025-02-08T12:00:00.000+00:00)"
         "The response should be a valid JSON array with no extra text, please don't include ."
     )
 
