@@ -437,6 +437,29 @@ def upload_pdf():
 
     return jsonify({"message": "File uploaded successfully", "saved_as": new_filename, "file_path": file_path})
 
+
+#Leaderboard Endpoints-----------------------------------------
+
+
+collectionUserTime = db["user_time"]
+
+@app.route('/leaderboard', methods=['GET'])
+def get_leaderboard():
+    """Fetch the shortest game completion times for all users."""
+    leaderboard = list(collectionUserTime.find({}, {"_id": 0, "username": 1, "time1": 1, "time2": 1, "time3": 1}))
+    
+    # Find the shortest time for each game
+    shortest_time1 = min([user["time1"] for user in leaderboard if "time1" in user], default=None)
+    shortest_time2 = min([user["time2"] for user in leaderboard if "time2" in user], default=None)
+    shortest_time3 = min([user["time3"] for user in leaderboard if "time3" in user], default=None)
+
+    return jsonify({
+        "shortest_time1": shortest_time1,
+        "shortest_time2": shortest_time2,
+        "shortest_time3": shortest_time3
+    }), 
+
+
 @app.route('/')
 def home():
     return render_template("index.html")
