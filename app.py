@@ -459,6 +459,72 @@ def get_leaderboard():
         "shortest_time3": shortest_time3
     }), 500
 
+@app.route('/leaderboard_user', methods=['GET'])
+def get_leaderboard_user():
+    """Fetch the shortest game completion times for a specific user."""
+    try:
+        username = request.args.get("username")  # Get username from query parameter
+        if not username:
+            return jsonify({"error": "Username parameter is required"}), 400
+
+        user = collectionUserTime.find_one(
+            {"username": username},
+            {"_id": 0, "username": 1, "time1": 1, "time2": 1, "time3": 1}
+        )
+
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify(user), 200
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+@app.route('/leaderboard_best_of_all', methods=['GET'])
+def get_leaderboard_best_of_all():
+    """Fetch the shortest game completion times for all users along with usernames."""
+    try:
+        # Fetch all user times from MongoDB
+        leaderboard = list(collectionUserTime.find({}, {"_id": 0, "username": 1, "time1": 1, "time2": 1, "time3": 1}))
+
+        if not leaderboard:
+            return jsonify({"message": "No leaderboard data available"}), 200
+
+        # Helper function to find the shortest time and corresponding username
+        def get_shortest_time(field):
+            valid_users = [user for user in leaderboard if field in user and isinstance(user[field], (int, float))]
+            return min(valid_users, key=lambda x: x[field]) if valid_users else None
+
+        # Find the shortest times along with usernames
+        shortest_time1 = get_shortest_time("time1")
+        shortest_time2 = get_shortest_time("time2")
+        shortest_time3 = get_shortest_time("time3")
+
+        # Build response JSON
+        result = {
+            "leaderboard": leaderboard,  # List of all users' times
+            "shortest_time1": {
+                "time": shortest_time1["time1"] if shortest_time1 else None,
+                "username": shortest_time1["username"] if shortest_time1 else None
+            },
+            "shortest_time2": {
+                "time": shortest_time2["time2"] if shortest_time2 else None,
+                "username": shortest_time2["username"] if shortest_time2 else None
+            },
+            "shortest_time3": {
+                "time": shortest_time3["time3"] if shortest_time3 else None,
+                "username": shortest_time3["username"] if shortest_time3 else None
+            }
+        }
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
+
+
+
 
 @app.route('/')
 def home():
