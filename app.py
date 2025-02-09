@@ -568,6 +568,14 @@ def update_time():
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+@app.route('/quiz_custom/delete_all', methods=['DELETE'])
+def delete_all_custom_quizzes():
+    """Deletes all documents from the custom_quiz collection."""
+    try:
+        result = collectionQuiz_custom.delete_many({})  # Delete all documents
+        return jsonify({"message": "All custom quizzes deleted successfully", "deleted_count": result.deleted_count}), 200
+    except Exception as e:
+        return jsonify({"error": f"Failed to delete data: {str(e)}"}), 500
 
 
 @app.route('/')
