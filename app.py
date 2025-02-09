@@ -503,7 +503,7 @@ def get_leaderboard_best_of_all():
 
         # Build response JSON
         result = {
-            "leaderboard": leaderboard,  # List of all users' times
+            #"leaderboard": leaderboard,  # List of all users' times
             "shortest_time1": {
                 "time": shortest_time1["time1"] if shortest_time1 else None,
                 "username": shortest_time1["username"] if shortest_time1 else None
