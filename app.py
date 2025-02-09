@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify, render_template
 from pymongo.mongo_client import MongoClient
 from werkzeug.security import generate_password_hash, check_password_hash
-import os
+import os, glob, re
 from dotenv import load_dotenv
 from flask_jwt_extended import create_access_token, jwt_required, JWTManager
 from flask_cors import CORS
 import requests, json, fitz  # Handles JSON parsing
+from datetime import datetime
+from PIL import Image
+import pytesseract
 
 # Load environment variables
 load_dotenv()
@@ -22,6 +25,9 @@ uri = os.getenv("MONGO_URI")
 client = MongoClient(uri)
 db = client['hackncCluster']
 user_collection = db['users']
+custom_quiz = db["custom_quiz"]
+OUTPUT_JSON_FILE = "quizzes.json"
+
 
 @app.route('/register', methods=['POST'])
 def register():
@@ -62,7 +68,7 @@ def login():
 
     # Create a JWT access token
     access_token = create_access_token(identity=username)
-    return jsonify({"message": "Login successful", "token": access_token}), 200
+    return jsonify({"message": "Login successful", "token": access_token, "username": username}), 200
 
 @app.route('/protected', methods=['GET'])
 @jwt_required()
@@ -104,7 +110,10 @@ if not api_key:
     raise ValueError("Missing OPENAI_API_KEY environment variable. Please set it in your .env file.")
 
 # Path to the uploaded PDF file
-PDF_FILE_PATH = "uploaded.pdf"
+def get_uploaded_file():
+    """Finds the most recent 'uploaded.*' file in the uploads directory."""
+    files = glob.glob(os.path.join(UPLOAD_FOLDER, "uploaded.*"))  # Find files with "uploaded.*"
+    return files[0] if files else None  # Return the first match
 
 def extract_text_from_pdf(pdf_path):
     """Extract text content from a PDF file."""
@@ -117,36 +126,36 @@ def extract_text_from_pdf(pdf_path):
     except Exception as e:
         return f"Error reading PDF: {str(e)}"
 
-@app.route("/process_pdf", methods=["POST"])
-def process_pdf():
-    """Process a locally stored PDF file and analyze it using OpenAI API."""
-    if not os.path.exists(PDF_FILE_PATH):
-        return jsonify({"error": "PDF file not found"}), 400
+def get_latest_uploaded_file():
+    """Returns the latest uploaded file (any format) in the uploads folder."""
+    files = [f for f in os.listdir(UPLOAD_FOLDER) if os.path.isfile(os.path.join(UPLOAD_FOLDER, f))]
+    
+    if not files:
+        return None  # No files found
 
-    # Extract text from PDF
-    pdf_text = extract_text_from_pdf(PDF_FILE_PATH)
+    # Get the most recently modified file
+    latest_file = max(files, key=lambda f: os.path.getmtime(os.path.join(UPLOAD_FOLDER, f)))
+    
+    return os.path.join(UPLOAD_FOLDER, latest_file)
 
-    # Define prompt for OpenAI
+
+@app.route("/process_uploaded_file", methods=["POST"])
+def process_uploaded_file():
+    """Processes the latest uploaded file, retrieves quizzes, and stores them in MongoDB."""
+    file_path = get_latest_uploaded_file()
+
+    if not file_path:
+        return jsonify({"error": "No uploaded file found in uploads folder"}), 400
+
+    # Extract text from the latest uploaded file
+    extracted_text = extract_text_from_file(file_path)
+
+    # Define OpenAI Prompt
     prompt = (
-        "Could you please return 20 JSON objects containing quizzes based on the provided PDF content? "
-        "Ensure each quiz has the following format:\n\n"
-        "[\n"
-        "  {\n"
-        '    "quiz_category": "Financial Ratios",\n'
-        '    "financial_literacy_quiz": "What is the Return on Equity (ROE) for Q1 2024 if net income is $1,200 million and total shareholders\' equity is $59,053 million?",\n'
-        '    "option1": "1.98%",\n'
-        '    "option2": "2.03%",\n'
-        '    "option3": "2.07%",\n'
-        '    "option4": "2.11%",\n'
-        '    "answer": "2.03%",\n'
-        '    "created_at": "2025-02-08T12:00:00.000+00:00",\n'
-        '    "last_updated": "2025-02-08T12:00:00.000+00:00"\n'
-        "  },\n"
-        "  ... (19 more questions in the same format)\n"
-        "]\n\n"
-        "Ensure the questions are relevant to the PDF content."
+        "Return only the array of Generated 10 quiz questions in valid JSON format based on the following PDF content. "
+        "No trailing markdown or anything but the array of JSON. The example would be quiz_category (Income Calculation or Financial Ratios, Balance Sheet Calculation), financial_literacy_quiz (Question, example is What is the Return on Equity (ROE) for Q1 2024?, option1 (for example, 1.98%), option2: (for example, 2.03%), option3: (for example, 2.07%), option4 (for example, 2.11%), answer (for example, 2.03%), created_at (for example, 2025-02-08T12:00:00.000+00:00),last_updated (for example, 2025-02-08T12:00:00.000+00:00)"
+        "The response should be a valid JSON array with no extra text, please don't include ."
     )
-
 
     headers = {
         "Content-Type": "application/json",
@@ -154,14 +163,12 @@ def process_pdf():
     }
 
     payload = {
-        "model": "gpt-3.5-turbo",  # Using GPT-3.5 to reduce costs
+        "model": "gpt-3.5-turbo",
         "messages": [
-            {
-                "role": "user",
-                "content": prompt
-            }
+            {"role": "system", "content": "Return only a valid JSON array of financial literacy quiz questions."},
+            {"role": "user", "content": prompt}
         ],
-        "max_tokens": 1000
+        "max_tokens": 2000
     }
 
     # Send request to OpenAI API
@@ -171,14 +178,203 @@ def process_pdf():
     if "choices" in response_data and len(response_data["choices"]) > 0:
         content_text = response_data["choices"][0]["message"]["content"]
 
-        # Try parsing as JSON
+        # **Fix: Remove Markdown-style JSON formatting**
+        content_text = content_text.replace("```json", "").replace("```", "").strip()
+
+        # **Use regex to extract valid JSON array**
+        json_match = re.search(r'\[\s*\{.*\}\s*\]', content_text, re.DOTALL)
+
+        if json_match:
+            extracted_json = json_match.group(0)
+
+            # **Fix: Remove trailing commas that might cause parsing errors**
+            extracted_json = re.sub(r',\s*}', '}', extracted_json)  # Fix }, issues
+            extracted_json = re.sub(r',\s*\]', ']', extracted_json)  # Fix ,] issues
+
+            try:
+                quiz_data = json.loads(extracted_json)  # Convert string to JSON
+
+                # **Insert into MongoDB**
+                if isinstance(quiz_data, list):  # Ensure it's a list of quiz objects
+                    custom_quiz.insert_many(quiz_data)
+                    return jsonify({"message": "Quiz data stored successfully", "quiz_count": len(quiz_data)}), 200
+                
+                return jsonify({"error": "Invalid JSON format received", "raw_response": extracted_json}), 500
+
+            except json.JSONDecodeError as e:
+                return jsonify({"error": "Failed to parse JSON response", "details": str(e), "raw_response": extracted_json}), 500
+
+        return jsonify({"error": "Invalid JSON format received", "raw_response": content_text}), 500
+
+    return jsonify({"error": "Failed to process file"}), 500
+
+
+
+def extract_text_from_file(file_path):
+    """Extracts text from different file types (PDF, TXT, Images)."""
+    file_extension = os.path.splitext(file_path)[-1].lower()
+
+    if file_extension == ".pdf":
         try:
-            json_data = json.loads(content_text)
-            return jsonify(json_data), 200
-        except json.JSONDecodeError:
-            return jsonify({"summary": content_text}), 200
+            doc = fitz.open(file_path)
+            text = "\n".join([page.get_text("text") for page in doc])
+            return text.strip() if text else "Error: Could not extract text from the PDF."
+        except Exception as e:
+            return f"Error reading PDF: {str(e)}"
+
+    elif file_extension == ".txt":
+        try:
+            with open(file_path, "r", encoding="utf-8") as file:
+                return file.read().strip()
+        except Exception as e:
+            return f"Error reading TXT file: {str(e)}"
+
+    elif file_extension in [".jpg", ".jpeg", ".png"]:
+        try:
+            image = Image.open(file_path)
+            return pytesseract.image_to_string(image)
+        except Exception as e:
+            return f"Error extracting text from image: {str(e)}"
+
+    else:
+        return "Error: Unsupported file format."
+    
+PDF_FILE_PATH = "uploads/uploaded.pdf"
+
+@app.route("/process_pdf", methods=["POST"])
+def process_pdf():
+    """Processes a locally stored PDF and retrieves quizzes from OpenAI."""
+    if not os.path.exists(PDF_FILE_PATH):
+        return jsonify({"error": "PDF file not found"}), 400
+
+    # Extract text from PDF
+    pdf_text = extract_text_from_pdf(PDF_FILE_PATH)
+
+    # OpenAI Prompt
+    prompt = (
+        "Return only the array of Generated 10 quiz questions in valid JSON format based on the following PDF content. "
+        "No trailing markdown or anything but the array of JSON. The example would be quiz_category (Income Calculation or Financial Ratios, Balance Sheet Calculation), financial_literacy_quiz (Question, example is What is the Return on Equity (ROE) for Q1 2024?, option1 (for example, 1.98%), option2: (for example, 2.03%), option3: (for example, 2.07%), option4 (for example, 2.11%), answer (for example, 2.03%), created_at (for example, 2025-02-08T12:00:00.000+00:00),last_updated (for example, 2025-02-08T12:00:00.000+00:00)"
+        "The response should be a valid JSON array with no extra text, please don't include ."
+    )
+
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_key}",
+    }
+
+    payload = {
+        "model": "gpt-3.5-turbo",
+        "messages": [
+            {"role": "system", "content": "Ensure the response is a JSON array with 10 quiz objects."},
+            {"role": "user", "content": prompt}
+        ],
+        "max_tokens": 1500
+    }
+
+    # Send request to OpenAI API
+    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+    response_data = response.json()
+
+    if "choices" in response_data and len(response_data["choices"]) > 0:
+        content_text = response_data["choices"][0]["message"]["content"].strip()
+
+        # **Fix: Remove Markdown-style JSON formatting**
+        content_text = content_text.replace("```json", "").replace("```", "").strip()
+
+        # Use regex to find JSON inside the response
+        json_match = re.search(r'\[\s*\{.*\}\s*\]', content_text, re.DOTALL)
+
+        if json_match:
+            extracted_json = json_match.group(0)  # Extract matched JSON
+            try:
+                quiz_data = json.loads(extracted_json)  # Convert string to JSON
+                                # **Save JSON to a file**
+                with open(OUTPUT_JSON_FILE, "w", encoding="utf-8") as json_file:
+                    json.dump(quiz_data, json_file, indent=4)
+
+
+                if isinstance(quiz_data, list):  # Ensure it's a list of quiz objects
+                    custom_quiz.insert_many(quiz_data)
+                    return jsonify({"message": "Quiz data stored successfully", "quiz_count": len(quiz_data)}), 200
+                
+                return jsonify({"error": "Invalid JSON format received", "raw_response": extracted_json}), 500
+
+
+                return jsonify(quiz_data), 200
+            except json.JSONDecodeError:
+                return jsonify({"error": "Failed to parse JSON response", "raw_response": extracted_json}), 500
+
+        return jsonify({"error": "Invalid JSON format received", "raw_response": content_text}), 500
 
     return jsonify({"error": "Failed to process PDF"}), 500
+
+@app.route("/store_saved_quizzes", methods=["POST"])
+def store_saved_quizzes():
+    """Reads quizzes.json and inserts data into MongoDB."""
+    if not os.path.exists(OUTPUT_JSON_FILE):
+        return jsonify({"error": "No quizzes.json file found. Please generate quizzes first."}), 400
+
+    try:
+        # Read quizzes from JSON file
+        with open(OUTPUT_JSON_FILE, "r", encoding="utf-8") as json_file:
+            quiz_data = json.load(json_file)
+
+        if not isinstance(quiz_data, list):
+            return jsonify({"error": "Invalid JSON format in quizzes.json"}), 500
+
+        # Insert into MongoDB
+        custom_quiz.insert_many(quiz_data)
+
+        return jsonify({
+            "message": "Quiz data stored successfully",
+            "quiz_count": len(quiz_data)
+        }), 200
+
+    except Exception as e:
+        return jsonify({"error": "Failed to insert into MongoDB", "details": str(e)}), 500
+
+
+# Define Upload Folder
+UPLOAD_FOLDER = "uploads"
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)  # Ensure upload directory exists
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+def extract_text_from_pdf(pdf_path):
+    """Extracts text from a PDF file."""
+    try:
+        doc = fitz.open(pdf_path)
+        text = "\n".join(page.get_text("text") for page in doc)
+        return text.strip() if text else "No text found in the PDF."
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
+
+def clear_uploads_folder():
+    """Deletes all files in the uploads folder before saving a new file."""
+    files = glob.glob(os.path.join(UPLOAD_FOLDER, "*"))  # Get all files in the folder
+    for file in files:
+        os.remove(file)  # Delete each file
+
+@app.route("/upload_pdf", methods=["POST"])
+def upload_pdf():
+    """Handles file upload, deletes old files, and saves as 'uploaded.<extension>'."""
+    if "file" not in request.files:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file = request.files["file"]
+    if file.filename == "":
+        return jsonify({"error": "No selected file"}), 400
+
+    # Clear all old files before saving the new one
+    clear_uploads_folder()
+
+    # Extract the file extension
+    file_ext = os.path.splitext(file.filename)[1]  # Gets ".pdf", ".txt", etc.
+    new_filename = f"uploaded{file_ext}"  # Always name it "uploaded.<ext>"
+
+    file_path = os.path.join(app.config["UPLOAD_FOLDER"], new_filename)
+    file.save(file_path)  # Save file with new name
+
+    return jsonify({"message": "File uploaded successfully", "saved_as": new_filename, "file_path": file_path})
 
 @app.route('/')
 def home():

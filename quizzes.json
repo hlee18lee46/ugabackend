@@ -1,0 +1,132 @@
+[
+    {
+        "quiz_category": "Income Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the net income for Q3 2023?",
+            "option1": "5.2 million",
+            "option2": "4.8 million",
+            "option3": "6.1 million",
+            "option4": "5.5 million",
+            "answer": "5.5 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Financial Ratios",
+        "financial_literacy_quiz": {
+            "Question": "What is the Return on Assets (ROA) for Q2 2024?",
+            "option1": "3.21%",
+            "option2": "3.45%",
+            "option3": "3.12%",
+            "option4": "2.98%",
+            "answer": "3.21%",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Balance Sheet Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the total liabilities for Q4 2023?",
+            "option1": "$8.6 million",
+            "option2": "$9.2 million",
+            "option3": "$10.1 million",
+            "option4": "$9.7 million",
+            "answer": "$10.1 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Income Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the gross profit margin for Q1 2024?",
+            "option1": "18.5%",
+            "option2": "17.2%",
+            "option3": "16.8%",
+            "option4": "15.9%",
+            "answer": "18.5%",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Financial Ratios",
+        "financial_literacy_quiz": {
+            "Question": "What is the Current Ratio for Q3 2023?",
+            "option1": "2.5",
+            "option2": "2.1",
+            "option3": "2.3",
+            "option4": "2.8",
+            "answer": "2.8",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Balance Sheet Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the total equity for Q2 2024?",
+            "option1": "$25.6 million",
+            "option2": "$27.4 million",
+            "option3": "$26.9 million",
+            "option4": "$24.8 million",
+            "answer": "$27.4 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Income Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the operating profit for Q4 2023?",
+            "option1": "7.2 million",
+            "option2": "6.5 million",
+            "option3": "5.9 million",
+            "option4": "7.6 million",
+            "answer": "6.5 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Financial Ratios",
+        "financial_literacy_quiz": {
+            "Question": "What is the Debt-to-Equity Ratio for Q1 2023?",
+            "option1": "0.62",
+            "option2": "0.58",
+            "option3": "0.64",
+            "option4": "0.60",
+            "answer": "0.58",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Balance Sheet Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the total assets for Q3 2024?",
+            "option1": "$41.2 million",
+            "option2": "$43.5 million",
+            "option3": "$42.8 million",
+            "option4": "$40.6 million",
+            "answer": "$43.5 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    },
+    {
+        "quiz_category": "Income Calculation",
+        "financial_literacy_quiz": {
+            "Question": "What is the EBITDA for Q2 2023?",
+            "option1": "9.8 million",
+            "option2": "10.2 million",
+            "option3": "11.1 million",
+            "option4": "9.4 million",
+            "answer": "10.2 million",
+            "created_at": "2025-02-08T12:00:00.000+00:00",
+            "last_updated": "2025-02-08T12:00:00.000+00:00"
+        }
+    }
+]
