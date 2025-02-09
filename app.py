@@ -79,6 +79,8 @@ def protected():
     return jsonify({"message": "This is a protected route!"})
 
 collectionQuiz = db["beginner_quiz"]  # Updated collection name
+collectionQuiz_truist= db["truist_quiz"]  # Updated collection name
+collectionQuiz_custom = db["custom_quiz"]  # Updated collection name
 
 @app.route('/quiz/categories', methods=['GET'])
 def get_categories():
@@ -106,57 +108,56 @@ def check_answer():
         return jsonify({"correct": correct, "message": "Correct!" if correct else "Wrong answer, try again."})
     return jsonify({"error": "Question not found"}), 404
 
-collectionQuiz_custom = db["custom_quiz"]  # Updated collection name
 
+### ✅ Custom Quiz Endpoints ###
 @app.route('/quiz_custom/categories', methods=['GET'])
-def get_categories():
-    """Fetch all quiz categories."""
+def get_categories_custom():
+    """Fetch all quiz categories from custom_quiz."""
     categories = collectionQuiz_custom.distinct("quiz_category")
     return jsonify({"categories": categories})
 
 @app.route('/quiz_custom/<category>', methods=['GET'])
-def get_quiz_by_category(category):
-    """Fetch quiz questions by category."""
+def get_quiz_by_category_custom(category):
+    """Fetch quiz questions by category from custom_quiz."""
     quizzes = list(collectionQuiz_custom.find({"quiz_category": category}, {"_id": 0}))
     return jsonify(quizzes)
 
 @app.route('/quiz_custom/answer', methods=['POST'])
-def check_answer():
-    """Validate if the selected answer is correct."""
+def check_answer_custom():
+    """Validate if the selected answer is correct for custom_quiz."""
     data = request.json
     question = data.get("question")
     selected_answer = data.get("answer")
 
     quiz = collectionQuiz_custom.find_one({"financial_literacy_quiz": question}, {"_id": 0, "answer": 1})
-    
+
     if quiz:
         correct = quiz["answer"] == selected_answer
         return jsonify({"correct": correct, "message": "Correct!" if correct else "Wrong answer, try again."})
     return jsonify({"error": "Question not found"}), 404
 
-collectionQuiz_truist= db["truist_quiz"]  # Updated collection name
-
-@app.route('/quiz_custom/categories', methods=['GET'])
-def get_categories():
-    """Fetch all quiz categories."""
+### ✅ Truist Quiz Endpoints ###
+@app.route('/quiz_truist/categories', methods=['GET'])
+def get_categories_truist():
+    """Fetch all quiz categories from truist_quiz."""
     categories = collectionQuiz_truist.distinct("quiz_category")
     return jsonify({"categories": categories})
 
-@app.route('/quiz_custom/<category>', methods=['GET'])
-def get_quiz_by_category(category):
-    """Fetch quiz questions by category."""
+@app.route('/quiz_truist/<category>', methods=['GET'])
+def get_quiz_by_category_truist(category):
+    """Fetch quiz questions by category from truist_quiz."""
     quizzes = list(collectionQuiz_truist.find({"quiz_category": category}, {"_id": 0}))
     return jsonify(quizzes)
 
-@app.route('/quiz_custom/answer', methods=['POST'])
-def check_answer():
-    """Validate if the selected answer is correct."""
+@app.route('/quiz_truist/answer', methods=['POST'])
+def check_answer_truist():
+    """Validate if the selected answer is correct for truist_quiz."""
     data = request.json
     question = data.get("question")
     selected_answer = data.get("answer")
 
     quiz = collectionQuiz_truist.find_one({"financial_literacy_quiz": question}, {"_id": 0, "answer": 1})
-    
+
     if quiz:
         correct = quiz["answer"] == selected_answer
         return jsonify({"correct": correct, "message": "Correct!" if correct else "Wrong answer, try again."})
