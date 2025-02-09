@@ -523,6 +523,50 @@ def get_leaderboard_best_of_all():
     except Exception as e:
         return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
+@app.route('/update_time', methods=['POST'])
+def update_time():
+    """Updates the user's shortest time for the game if it's a new best time."""
+    try:
+        data = request.json
+        username = data.get("username")
+        game_type = data.get("game_type")  # Should be "time1", "time2", or "time3"
+        new_time = data.get("time")
+
+        if not username or not game_type or new_time is None:
+            return jsonify({"error": "Missing required parameters"}), 400
+
+        if game_type not in ["time1", "time2", "time3"]:
+            return jsonify({"error": "Invalid game type"}), 400
+
+        # Find the user's current record
+        user_record = collectionUserTime.find_one({"username": username})
+
+        if user_record:
+            # If the new time is shorter, update it
+            if game_type in user_record and isinstance(user_record[game_type], (int, float)):
+                if new_time < user_record[game_type]:  
+                    collectionUserTime.update_one(
+                        {"username": username},
+                        {"$set": {game_type: new_time}}
+                    )
+                    return jsonify({"message": f"New best time updated for {game_type}!", "new_time": new_time}), 200
+                else:
+                    return jsonify({"message": f"Time not updated. {new_time} is not a new best time."}), 200
+            else:
+                # If the field does not exist, insert the time
+                collectionUserTime.update_one(
+                    {"username": username},
+                    {"$set": {game_type: new_time}},
+                    upsert=True
+                )
+                return jsonify({"message": f"Time recorded for {game_type}.", "new_time": new_time}), 200
+        else:
+            # Insert a new record for the user if not found
+            collectionUserTime.insert_one({"username": username, game_type: new_time})
+            return jsonify({"message": f"User record created and time saved for {game_type}.", "new_time": new_time}), 200
+
+    except Exception as e:
+        return jsonify({"error": f"An unexpected error occurred: {str(e)}"}), 500
 
 
 
