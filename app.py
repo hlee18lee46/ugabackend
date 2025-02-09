@@ -79,7 +79,7 @@ def protected():
     return jsonify({"message": "This is a protected route!"})
 
 collectionQuiz = db["beginner_quiz"]  # Updated collection name
-collectionQuiz_truist= db["truist_quiz"]  # Updated collection name
+collectionQuiz_truist= db["trust_quiz"]  # Updated collection name
 collectionQuiz_custom = db["custom_quiz"]  # Updated collection name
 
 @app.route('/quiz/categories', methods=['GET'])
