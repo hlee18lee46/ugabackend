@@ -457,7 +457,7 @@ def get_leaderboard():
         "shortest_time1": shortest_time1,
         "shortest_time2": shortest_time2,
         "shortest_time3": shortest_time3
-    }), 
+    }), 500
 
 
 @app.route('/')
